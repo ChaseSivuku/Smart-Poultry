@@ -283,6 +283,7 @@ useEffect(() => {
                     <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                     <XAxis 
                       dataKey="name" 
+                      label={{ value: 'Feed', position: 'insideBottom', offset: -5, style: { textAnchor: 'middle', fill: '#374151' } }}
                       tick={{ fontSize: 12, fill: '#374151' }}
                       axisLine={{ stroke: '#d1d5db' }}
                     />
