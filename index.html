@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Smart Chicken Farm Simulation (3D)</title>
+    <style>
+        body { margin: 0; overflow: hidden; }
+        #ui-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            color: white;
+            font-family: Arial, sans-serif;
+            pointer-events: none;
+        }
+        #control-panel {
+            background: rgba(40, 40, 40, 0.8);
+            padding: 10px;
+            border-radius: 10px;
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            width: 200px;
+        }
+        #status-message {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.5);
+            padding: 10px;
+            border-radius: 5px;
+            color: yellow;
+        }
+        .graph {
+            width: 160px;
+            height: 60px;
+            background: rgba(30, 30, 30, 0.8);
+            border: 1px solid rgba(50, 50, 50, 0.8);
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div id="ui-overlay">
+        <div id="control-panel">
+            <h3>CONTROL PANEL</h3>
+            <p id="temp-reading">Temp: 0°C</p>
+            <p id="light-reading">Light: 0 lux</p>
+            <p id="water-reading">Water: 0%</p>
+            <p id="feed-reading">Feed: 0%</p>
+        </div>
+        <div style="position: absolute; top: 20px; right: 20px;">
+            <canvas id="temp-graph" class="graph"></canvas>
+            <p id="temp-label">Temperature: 0°C</p>
+            <canvas id="light-graph" class="graph"></canvas>
+            <p id="light-label">Light: 0 lux</p>
+        </div>
+        <div id="status-message"></div>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // Constants
+        const CHICKEN_COUNT = 5;
+        const MAX_HISTORY = 60;
+
+        // Colors (as THREE.Color)
+        const COLORS = {
+            WHITE: new THREE.Color(0xffffff),
+            BLUE: new THREE.Color(0x6495ed),
+            GREEN: new THREE.Color(0x22b14c),
+            LIGHT_GREEN: new THREE.Color(0x90ee90),
+            RED: new THREE.Color(0xc83232),
+            YELLOW: new THREE.Color(0xffff64),
+            LIGHT_YELLOW: new THREE.Color(0xffffb4),
+            GRAY: new THREE.Color(0x464646),
+            BLACK: new THREE.Color(0x000000),
+            BROWN: new THREE.Color(0x8b4513),
+            LIGHT_BLUE: new THREE.Color(0xadd8e6),
+            DARK_BLUE: new THREE.Color(0x141428) // For night sky
+        };
+
+        // FarmState
+        class FarmState {
+            constructor() {
+                this.temperature = 27.0;
+                this.light = 300;
+                this.water_level = 80;
+                this.feed_level = 70;
+                this.pump = false;
+                this.fan = false;
+                this.light_on = false;
+                this.time = 0;
+                this.history = {
+                    temperature: [],
+                    light: [],
+                    water_level: [],
+                    feed_level: []
+                };
+                this.status_message = "";
+            }
+
+            update() {
+                this.time += 1;
+                // Temperature changes
+                if (this.fan) {
+                    this.temperature -= Math.random() * 0.3 + 0.1;
+                } else {
+                    this.temperature += Math.sin(this.time / 20) * 0.2 + (Math.random() * 0.4 - 0.1);
+                }
+
+                // Light changes
+                if (this.light_on) {
+                    this.light = Math.min(500, this.light + Math.random() * 3 + 2);
+                } else {
+                    this.light += Math.sin(this.time / 50) * 5 + (Math.random() * 13 - 8);
+                }
+
+                // Water level
+                const water_drop = 0.1 + (0.05 * Math.max(0, (this.temperature - 25) / 10));
+                if (this.pump) {
+                    this.water_level += Math.random() * 0.5 + 1.0;
+                } else {
+                    this.water_level -= water_drop;
+                }
+
+                // Feed level
+                this.feed_level -= Math.random() * 0.1 + 0.05;
+
+                // Limits
+                this.temperature = Math.max(15, Math.min(40, this.temperature));
+                this.light = Math.max(0, Math.min(500, this.light));
+                this.water_level = Math.max(0, Math.min(100, this.water_level));
+                this.feed_level = Math.max(0, Math.min(100, this.feed_level));
+
+                // Store history every 5 frames
+                if (this.time % 5 === 0) {
+                    this.history.temperature.push(this.temperature);
+                    this.history.light.push(this.light);
+                    this.history.water_level.push(this.water_level);
+                    this.history.feed_level.push(this.feed_level);
+
+                    for (let key in this.history) {
+                        if (this.history[key].length > MAX_HISTORY) {
+                            this.history[key].shift();
+                        }
+                    }
+                }
+            }
+
+            automation_agent() {
+                this.status_message = "";
+
+                // Light control
+                if (this.light < 200) {
+                    this.light_on = true;
+                    this.status_message = "Low light detected, turning ON lights";
+                } else {
+                    this.light_on = false;
+                }
+
+                // Temperature control
+                if (this.temperature > 30) {
+                    this.fan = true;
+                    this.status_message = "High temperature detected, activating fan";
+                } else if (this.temperature < 25) {
+                    this.fan = false;
+                }
+
+                // Water level control
+                if (this.water_level < 40) {
+                    this.pump = true;
+                    this.status_message = "Water level low, activating pump";
+                } else if (this.water_level >= 90) {
+                    this.pump = false;
+                    this.status_message = "Water level optimal, deactivating pump";
+                }
+
+                // Feed level warning
+                if (this.feed_level < 20) {
+                    this.status_message = "WARNING: Feed level critical!";
+                }
+            }
+        }
+
+        // Chicken class
+        class Chicken {
+            constructor(scene) {
+                this.mesh = new THREE.Group();
+                // Body (ellipsoid approximation with sphere stretched)
+                const bodyGeometry = new THREE.SphereGeometry(0.5, 32, 32);
+                const bodyMaterial = new THREE.MeshPhongMaterial({ color: COLORS.YELLOW });
+                this.body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+                this.body.scale.set(1, 0.75, 1); // Make oval
+                this.mesh.add(this.body);
+
+                // Head
+                const headGeometry = new THREE.SphereGeometry(0.3, 32, 32);
+                const headMaterial = new THREE.MeshPhongMaterial({ color: COLORS.LIGHT_YELLOW });
+                this.head = new THREE.Mesh(headGeometry, headMaterial);
+                this.head.position.set(0.5, 0.3, 0);
+                this.mesh.add(this.head);
+
+                // Beak (cone)
+                const beakGeometry = new THREE.ConeGeometry(0.1, 0.3, 32);
+                const beakMaterial = new THREE.MeshPhongMaterial({ color: COLORS.RED });
+                this.beak = new THREE.Mesh(beakGeometry, beakMaterial);
+                this.beak.position.set(0.7, 0.3, 0);
+                this.beak.rotation.z = Math.PI / 2;
+                this.mesh.add(this.beak);
+
+                this.position = new THREE.Vector3(
+                    Math.random() * 10 - 5,
+                    0,
+                    Math.random() * 10 - 5
+                );
+                this.mesh.position.copy(this.position);
+                this.direction = Math.random() * 2 * Math.PI;
+                this.speed = Math.random() + 0.5;
+                this.step_timer = 0;
+                this.step_max = Math.floor(Math.random() * 40) + 20;
+
+                scene.add(this.mesh);
+            }
+
+            move() {
+                this.step_timer += 1;
+                if (this.step_timer >= this.step_max) {
+                    this.direction = Math.random() * 2 * Math.PI;
+                    this.speed = Math.random() + 0.5;
+                    this.step_timer = 0;
+                    this.step_max = Math.floor(Math.random() * 40) + 20;
+                }
+
+                const dx = Math.cos(this.direction) * this.speed * 0.05;
+                const dz = Math.sin(this.direction) * this.speed * 0.05;
+
+                this.position.x += dx;
+                this.position.z += dz;
+
+                // Boundaries (coop size approx -7 to 7 in x/z)
+                if (this.position.x < -7 || this.position.x > 7) {
+                    this.direction = Math.PI - this.direction;
+                    this.position.x = Math.max(-7, Math.min(7, this.position.x));
+                }
+                if (this.position.z < -7 || this.position.z > 7) {
+                    this.direction = -this.direction;
+                    this.position.z = Math.max(-7, Math.min(7, this.position.z));
+                }
+
+                this.mesh.position.copy(this.position);
+
+                // Face direction
+                this.mesh.rotation.y = this.direction;
+            }
+        }
+
+        // Helper to draw trend graph on 2D canvas
+        function drawTrendGraph(canvas, values, color, max_val) {
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            if (values.length < 2) return;
+
+            ctx.beginPath();
+            ctx.moveTo(0, canvas.height - (values[0] / max_val) * canvas.height);
+            for (let i = 1; i < values.length; i++) {
+                const x = (i / (values.length - 1)) * canvas.width;
+                const y = canvas.height - (values[i] / max_val) * canvas.height;
+                ctx.lineTo(x, y);
+            }
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2;
+            ctx.stroke();
+        }
+
+        // Main simulation
+        function init() {
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            const renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            document.body.appendChild(renderer.domElement);
+
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0x404040);
+            scene.add(ambientLight);
+
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
+            directionalLight.position.set(5, 10, 5);
+            directionalLight.castShadow = true;
+            scene.add(directionalLight);
+
+            // Ground (floor)
+            const floorGeometry = new THREE.PlaneGeometry(20, 20);
+            const floorMaterial = new THREE.MeshStandardMaterial({ color: COLORS.BROWN });
+            const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+            floor.rotation.x = -Math.PI / 2;
+            floor.receiveShadow = true;
+            scene.add(floor);
+
+            // Barn walls (simple box)
+            const wallMaterial = new THREE.MeshStandardMaterial({ color: COLORS.BROWN });
+            const backWall = new THREE.Mesh(new THREE.BoxGeometry(20, 5, 0.5), wallMaterial);
+            backWall.position.set(0, 2.5, -10);
+            backWall.castShadow = true;
+            scene.add(backWall);
+
+            const frontWall = new THREE.Mesh(new THREE.BoxGeometry(20, 5, 0.5), wallMaterial);
+            frontWall.position.set(0, 2.5, 10);
+            frontWall.castShadow = true;
+            scene.add(frontWall);
+
+            const leftWall = new THREE.Mesh(new THREE.BoxGeometry(0.5, 5, 20), wallMaterial);
+            leftWall.position.set(-10, 2.5, 0);
+            leftWall.castShadow = true;
+            scene.add(leftWall);
+
+            const rightWall = new THREE.Mesh(new THREE.BoxGeometry(0.5, 5, 20), wallMaterial);
+            rightWall.position.set(10, 2.5, 0);
+            rightWall.castShadow = true;
+            scene.add(rightWall);
+
+            // Feed trough
+            const feedTrough = new THREE.Group();
+            const troughGeometry = new THREE.BoxGeometry(3, 1, 1);
+            const troughMaterial = new THREE.MeshStandardMaterial({ color: COLORS.GRAY });
+            const trough = new THREE.Mesh(troughGeometry, troughMaterial);
+            trough.position.set(-6, 0.5, 0);
+            feedTrough.add(trough);
+            scene.add(feedTrough);
+
+            // Water tank
+            const waterTank = new THREE.Group();
+            const tankGeometry = new THREE.CylinderGeometry(1, 1, 3, 32);
+            const tankMaterial = new THREE.MeshStandardMaterial({ color: 0x323246 });
+            const tank = new THREE.Mesh(tankGeometry, tankMaterial);
+            tank.position.set(0, 1.5, -5);
+            waterTank.add(tank);
+            scene.add(waterTank);
+
+            // Light bulb (sphere)
+            const lightBulbGeometry = new THREE.SphereGeometry(0.5, 32, 32);
+            const lightBulbMaterial = new THREE.MeshStandardMaterial({ color: COLORS.YELLOW, emissive: 0x444400 });
+            const lightBulb = new THREE.Mesh(lightBulbGeometry, lightBulbMaterial);
+            lightBulb.position.set(-3, 4, 3);
+            scene.add(lightBulb);
+
+            // Fan (simple blades)
+            const fan = new THREE.Group();
+            const fanBase = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.2, 32), new THREE.MeshStandardMaterial({ color: COLORS.BLUE }));
+            fanBase.position.set(5, 4, 5);
+            fan.add(fanBase);
+            for (let i = 0; i < 4; i++) {
+                const blade = new THREE.Mesh(new THREE.BoxGeometry(0.1, 2, 0.1), new THREE.MeshStandardMaterial({ color: COLORS.LIGHT_BLUE }));
+                blade.rotation.y = i * Math.PI / 2;
+                blade.position.set(0, 0, 1); // Offset for rotation
+                fan.add(blade);
+            }
+            scene.add(fan);
+
+            // Pump (small box near tank)
+            const pumpGeometry = new THREE.BoxGeometry(0.5, 0.5, 0.5);
+            const pumpMaterial = new THREE.MeshStandardMaterial({ color: COLORS.GREEN });
+            const pump = new THREE.Mesh(pumpGeometry, pumpMaterial);
+            pump.position.set(1, 0.25, -5);
+            scene.add(pump);
+
+            // Chickens
+            const chickens = [];
+            for (let i = 0; i < CHICKEN_COUNT; i++) {
+                chickens.push(new Chicken(scene));
+            }
+
+            // UI elements
+            const tempReading = document.getElementById('temp-reading');
+            const lightReading = document.getElementById('light-reading');
+            const waterReading = document.getElementById('water-reading');
+            const feedReading = document.getElementById('feed-reading');
+            const tempLabel = document.getElementById('temp-label');
+            const lightLabel = document.getElementById('light-label');
+            const statusMessage = document.getElementById('status-message');
+            const tempGraph = document.getElementById('temp-graph');
+            const lightGraph = document.getElementById('light-graph');
+
+            // State
+            const state = new FarmState();
+
+            camera.position.set(0, 5, 15);
+            camera.lookAt(0, 0, 0);
+
+            // Animation loop
+            function animate() {
+                requestAnimationFrame(animate);
+
+                state.update();
+                state.automation_agent();
+
+                // Update chickens
+                chickens.forEach(ch => ch.move());
+
+                // Update devices
+                lightBulb.material.color.set(state.light_on ? COLORS.YELLOW : 0x505000);
+                lightBulb.material.emissive.set(state.light_on ? 0xffff00 : 0x000000);
+                directionalLight.intensity = state.light_on ? 1.0 : 0.5;
+
+                if (state.fan) {
+                    fan.rotation.y += 0.1;
+                }
+
+                pump.material.color.set(state.pump ? COLORS.GREEN : 0x326432);
+
+                // Update feed trough (scale inner feed)
+                // For simplicity, we can add an inner box for feed
+                if (!feedTrough.feedMesh) {
+                    const feedGeometry = new THREE.BoxGeometry(2.9, 0.9, 0.9);
+                    const feedMaterial = new THREE.MeshStandardMaterial({ color: COLORS.LIGHT_GREEN });
+                    feedTrough.feedMesh = new THREE.Mesh(feedGeometry, feedMaterial);
+                    feedTrough.feedMesh.position.set(-6, 0.5, 0);
+                    feedTrough.add(feedTrough.feedMesh);
+                }
+                feedTrough.feedMesh.scale.x = state.feed_level / 100;
+
+                // Update water tank (inner cylinder for water)
+                if (!waterTank.waterMesh) {
+                    const waterGeometry = new THREE.CylinderGeometry(0.95, 0.95, 3, 32);
+                    const waterMaterial = new THREE.MeshStandardMaterial({ color: COLORS.BLUE, transparent: true, opacity: 0.7 });
+                    waterTank.waterMesh = new THREE.Mesh(waterGeometry, waterMaterial);
+                    waterTank.waterMesh.position.set(0, 1.5, -5);
+                    waterTank.add(waterTank.waterMesh);
+                }
+                waterTank.waterMesh.scale.y = state.water_level / 100;
+                waterTank.waterMesh.position.y = 1.5 - (3 / 2) * (1 - state.water_level / 100);
+
+                // Update UI
+                tempReading.textContent = `Temp: ${state.temperature.toFixed(1)}°C`;
+                tempReading.style.color = state.temperature > 30 ? 'red' : 'white';
+                lightReading.textContent = `Light: ${state.light.toFixed(0)} lux`;
+                waterReading.textContent = `Water: ${state.water_level.toFixed(1)}%`;
+                waterReading.style.color = state.water_level < 30 ? 'red' : 'white';
+                feedReading.textContent = `Feed: ${state.feed_level.toFixed(1)}%`;
+                feedReading.style.color = state.feed_level < 30 ? 'red' : 'white';
+
+                tempLabel.textContent = `Temperature: ${state.temperature.toFixed(1)}°C`;
+                lightLabel.textContent = `Light: ${state.light.toFixed(0)} lux`;
+
+                statusMessage.textContent = state.status_message;
+
+                // Draw graphs
+                drawTrendGraph(tempGraph, state.history.temperature, 'red', 40);
+                drawTrendGraph(lightGraph, state.history.light, 'yellow', 500);
+
+                renderer.render(scene, camera);
+            }
+
+            animate();
+
+            // Handle resize
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+        }
+
+        init();
+    </script>
+</body>
+</html>

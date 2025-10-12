@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Poultry</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+
+        /* Login Screen */
+        .login-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .login-box {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 50px 40px;
+            width: 100%;
+            max-width: 420px;
+            animation: slideUp 0.6s ease;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .login-header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .login-header h1 {
+            font-size: 32px;
+            color: #667eea;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .login-header p {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .login-btn {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 16px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .login-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        .error-msg {
+            color: #e74c3c;
+            text-align: center;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+
+        /* Dashboard */
+        .dashboard {
+            display: none;
+            padding: 30px 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .navbar {
+            background: white;
+            padding: 15px 30px;
+            border-radius: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .navbar h1 {
+            color: #667eea;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .logout-btn {
+            padding: 10px 20px;
+            background: #e74c3c;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .logout-btn:hover {
+            background: #c0392b;
+            transform: translateY(-2px);
+        }
+
+        .dashboard-content {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 25px;
+        }
+
+        .sensor-card {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s;
+            animation: fadeIn 0.6s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .sensor-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15);
+        }
+
+        .sensor-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .sensor-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+
+        .movement .sensor-icon {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+
+        .temperature .sensor-icon {
+            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+        }
+
+        .water .sensor-icon {
+            background: linear-gradient(135deg, #30cfd0 0%, #330867 100%);
+        }
+
+        .sensor-title {
+            flex: 1;
+        }
+
+        .sensor-title h2 {
+            color: #333;
+            font-size: 18px;
+            margin-bottom: 5px;
+        }
+
+        .sensor-title p {
+            color: #999;
+            font-size: 12px;
+        }
+
+        .sensor-value {
+            font-size: 42px;
+            font-weight: 700;
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+
+        .sensor-status {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+
+        .status-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .status-label {
+            color: #666;
+            font-weight: 600;
+        }
+
+        .status-value {
+            color: #333;
+            font-weight: 700;
+        }
+
+        .alert {
+            padding: 10px 15px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            text-align: center;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert-danger {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .alert-warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+
+        .refresh-btn {
+            padding: 8px 15px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            transition: all 0.3s;
+            margin-top: 15px;
+            width: 100%;
+        }
+
+        .refresh-btn:hover {
+            background: #764ba2;
+            transform: scale(1.02);
+        }
+
+        .refresh-btn:active {
+            transform: scale(0.98);
+        }
+
+        @media (max-width: 768px) {
+            .login-box {
+                padding: 40px 25px;
+            }
+
+            .navbar {
+                flex-direction: column;
+                gap: 15px;
+                text-align: center;
+            }
+
+            .dashboard-content {
+                grid-template-columns: 1fr;
+            }
+
+            .sensor-value {
+                font-size: 36px;
+            }
+        }
+    </style>
+    <!-- Add Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+</head>
+<body>
+    <!-- Login Screen -->
+    <div class="login-container" id="loginContainer">
+        <div class="login-box">
+            <div class="login-header">
+                <h1>🐔 Smart Poultry</h1>
+                <p>IoT Monitoring System by ZERO LATANCY</p>
+            </div>
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="username">Username (Email)</label>
+                    <input type="text" id="username" placeholder="Enter email" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" placeholder="Enter password" required>
+                </div>
+                <button type="submit" class="login-btn">Login</button>
+                <div class="error-msg" id="errorMsg"></div>
+            </form>
+            <div style="text-align:center; margin-top:15px;">
+                <a href="#" id="showSignUp" style="color:#667eea; text-decoration:underline; font-size:14px;">Don't have an account? Sign Up</a>
+            </div>
+            <!-- Sign Up Form (hidden by default) -->
+            <form id="signUpForm" style="display:none; margin-top:20px;">
+                <div class="form-group">
+                    <label for="signupEmail">Email</label>
+                    <input type="email" id="signupEmail" placeholder="Enter email" required>
+                </div>
+                <div class="form-group">
+                    <label for="signupPassword">Password</label>
+                    <input type="password" id="signupPassword" placeholder="Enter password" required>
+                </div>
+                <button type="submit" class="login-btn">Sign Up</button>
+                <div class="error-msg" id="signUpErrorMsg"></div>
+            </form>
+            <div style="text-align:center; margin-top:10px;">
+                <a href="#" id="showLogin" style="color:#667eea; text-decoration:underline; font-size:14px; display:none;">Already have an account? Login</a>
+            </div>
+        </div>
+    </div>
+      <form id ></form>
+    <!-- Dashboard -->
+    <div class="dashboard" id="dashboard">
+        <div class="navbar">
+            <h1>🐔 Smart Poultry Dashboard</h1>
+            <button class="logout-btn" onclick="logout()">Logout</button>
+        </div>
+
+        <div class="dashboard-content">
+            <!-- Movement Detection Card -->
+            <div class="sensor-card movement">
+                <div class="sensor-header">
+                    <div class="sensor-icon">🚶</div>
+                    <div class="sensor-title">
+                        <h2>Movement Detection</h2>
+                        <p>Real-time monitoring</p>
+                    </div>
+                </div>
+                <div class="sensor-value" id="movementValue">0</div>
+                <div class="sensor-status">
+                    <div class="status-item">
+                        <span class="status-label">Status:</span>
+                        <span class="status-value" id="movementStatus">Idle</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Activity Level:</span>
+                        <span class="status-value" id="movementLevel">Low</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Last Update:</span>
+                        <span class="status-value" id="movementTime">Just now</span>
+                    </div>
+                </div>
+                <div class="alert alert-success" id="movementAlert" style="display: none;"></div>
+                <button class="refresh-btn" onclick="simulateMovement()">Simulate Movement</button>
+            </div>
+
+            <!-- Temperature Card -->
+            <div class="sensor-card temperature">
+                <div class="sensor-header">
+                    <div class="sensor-icon">🌡️</div>
+                    <div class="sensor-title">
+                        <h2>Temperature</h2>
+                        <p>Controlled environment</p>
+                    </div>
+                </div>
+                <div class="sensor-value" id="tempValue">28°C</div>
+                <div class="sensor-status">
+                    <div class="status-item">
+                        <span class="status-label">Status:</span>
+                        <span class="status-value" id="tempStatus">Normal</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Range:</span>
+                        <span class="status-value">20-32°C</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Last Update:</span>
+                        <span class="status-value" id="tempTime">Just now</span>
+                    </div>
+                </div>
+                <div class="alert alert-warning" id="tempAlert" style="display: none;"></div>
+                <button class="refresh-btn" onclick="updateTemperature()">Update Reading</button>
+            </div>
+
+            <!-- Water Level Card -->
+            <div class="sensor-card water">
+                <div class="sensor-header">
+                    <div class="sensor-icon">💧</div>
+                    <div class="sensor-title">
+                        <h2>Water Level</h2>
+                        <p>Tank monitoring</p>
+                    </div>
+                </div>
+                <div class="sensor-value" id="waterValue">75%</div>
+                <div class="sensor-status">
+                    <div class="status-item">
+                        <span class="status-label">Status:</span>
+                        <span class="status-value" id="waterStatus">Good</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Capacity:</span>
+                        <span class="status-value" id="waterCapacity">750/1000L</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Last Update:</span>
+                        <span class="status-value" id="waterTime">Just now</span>
+                    </div>
+                </div>
+                <div class="alert alert-danger" id="waterAlert" style="display: none;"></div>
+                <button class="refresh-btn" onclick="updateWaterLevel()">Update Reading</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        
+        const firebaseConfig = {
+            apiKey: "AIzaSyBnwD3SWaeZn9vIieF4vsan3aeKgiFD1Dw",
+            authDomain: "smart-poultry-dashboard.firebaseapp.com",
+            projectId: "smart-poultry-dashbord",
+            storageBucket: "smart-poultry-dashboard.firebasestorage.app",
+            messagingSenderId: "871078170259",
+            appId: "1:871078170259:web:80c477ffc6b9cfd034c766",
+            measurementId: "G-ZH4HVLFNWS",
+
+
+           
+        };
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+
+        // 2. Login functionality using Firebase Auth
+        document.getElementById('loginForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const errorMsg = document.getElementById('errorMsg');
+
+            // Use email as username for Firebase Auth
+            auth.signInWithEmailAndPassword(username, password)
+                .then((userCredential) => {
+                    isLoggedIn = true;
+                    currentUser = username;
+                    errorMsg.textContent = '';
+                    showDashboard();
+                    initializeSensors();
+                })
+                .catch((error) => {
+                    errorMsg.textContent = '❌ ' + (error.message || 'Login failed');
+                });
+        });
+
+        // 3. Logout using Firebase Auth
+        function logout() {
+            auth.signOut().then(() => {
+                isLoggedIn = false;
+                currentUser = '';
+                document.getElementById('loginContainer').style.display = 'flex';
+                document.getElementById('dashboard').style.display = 'none';
+                document.getElementById('loginForm').reset();
+            });
+        }
+
+        // 4. Optional: Listen for auth state changes
+        auth.onAuthStateChanged(function(user) {
+            if (user) {
+                isLoggedIn = true;
+                currentUser = user.email;
+                showDashboard();
+                initializeSensors();
+            } else {
+                isLoggedIn = false;
+                currentUser = '';
+                document.getElementById('loginContainer').style.display = 'flex';
+                document.getElementById('dashboard').style.display = 'none';
+            }
+        });
+
+        // Initial state
+        let isLoggedIn = false;
+        let currentUser = '';
+
+        // Sensor data
+        let sensorData = {
+            movement: 0,
+            temperature: 28,
+            waterLevel: 75
+        };
+
+        // Sensor initialization and updates
+        function initializeSensors() {
+            updateAllSensors();
+            setInterval(updateAllSensors, 5000);
+        }
+
+        function updateAllSensors() {
+            if (!isLoggedIn) return;
+
+            // Auto update with slight variations
+            sensorData.temperature = 28 + (Math.random() - 0.5) * 4;
+            sensorData.waterLevel = Math.max(10, sensorData.waterLevel + (Math.random() - 0.5) * 10);
+            
+            updateTemperatureDisplay();
+            updateWaterDisplay();
+            updateMovementDisplay();
+        }
+
+        function simulateMovement() {
+            sensorData.movement = Math.floor(Math.random() * 100) + 1;
+            updateMovementDisplay();
+        }
+
+        function updateTemperature() {
+            sensorData.temperature = 20 + Math.random() * 12;
+            updateTemperatureDisplay();
+        }
+
+        function updateWaterLevel() {
+            sensorData.waterLevel = Math.max(10, Math.min(100, sensorData.waterLevel + (Math.random() - 0.5) * 30));
+            updateWaterDisplay();
+        }
+
+        function updateMovementDisplay() {
+            const value = sensorData.movement;
+            document.getElementById('movementValue').textContent = value + '%';
+            
+            const statusEl = document.getElementById('movementStatus');
+            const levelEl = document.getElementById('movementLevel');
+            const alertEl = document.getElementById('movementAlert');
+
+            if (value < 20) {
+                statusEl.textContent = 'Idle';
+                levelEl.textContent = 'Low';
+                alertEl.style.display = 'none';
+            } else if (value < 60) {
+                statusEl.textContent = 'Active';
+                levelEl.textContent = 'Medium';
+                alertEl.textContent = '✓ Normal activity detected';
+                alertEl.className = 'alert alert-success';
+                alertEl.style.display = 'block';
+            } else {
+                statusEl.textContent = 'Very Active';
+                levelEl.textContent = 'High';
+                alertEl.textContent = '⚠ High activity detected';
+                alertEl.className = 'alert alert-warning';
+                alertEl.style.display = 'block';
+            }
+
+            updateTime('movementTime');
+        }
+
+        function updateTemperatureDisplay() {
+            const temp = sensorData.temperature.toFixed(1);
+            document.getElementById('tempValue').textContent = temp + '°C';
+            
+            const statusEl = document.getElementById('tempStatus');
+            const alertEl = document.getElementById('tempAlert');
+
+            if (temp < 20) {
+                statusEl.textContent = 'Too Cold';
+                alertEl.textContent = '❄️ Temperature too low! Heating required';
+                alertEl.className = 'alert alert-danger';
+                alertEl.style.display = 'block';
+            } else if (temp > 32) {
+                statusEl.textContent = 'Too Hot';
+                alertEl.textContent = '🔥 Temperature too high! Cooling required';
+                alertEl.className = 'alert alert-danger';
+                alertEl.style.display = 'block';
+            } else {
+                statusEl.textContent = 'Normal';
+                alertEl.style.display = 'none';
+            }
+
+            updateTime('tempTime');
+        }
+
+        function updateWaterDisplay() {
+            const level = sensorData.waterLevel.toFixed(0);
+            document.getElementById('waterValue').textContent = level + '%';
+            
+            const capacity = Math.round(level * 10);
+            document.getElementById('waterCapacity').textContent = capacity + '/1000L';
+            
+            const statusEl = document.getElementById('waterStatus');
+            const alertEl = document.getElementById('waterAlert');
+
+            if (level < 20) {
+                statusEl.textContent = 'Critical';
+                alertEl.textContent = '🚨 Water level critical! Refill immediately';
+                alertEl.className = 'alert alert-danger';
+                alertEl.style.display = 'block';
+            } else if (level < 40) {
+                statusEl.textContent = 'Low';
+                alertEl.textContent = '⚠ Water level low. Consider refilling soon';
+                alertEl.className = 'alert alert-warning';
+                alertEl.style.display = 'block';
+            } else {
+                statusEl.textContent = 'Good';
+                alertEl.style.display = 'none';
+            }
+
+            updateTime('waterTime');
+        }
+
+        function updateTime(elementId) {
+            document.getElementById(elementId).textContent = 'Just now';
+        }
+
+        // Show Sign Up form
+    document.getElementById('showSignUp').onclick = function(e) {
+        e.preventDefault();
+        document.getElementById('loginForm').style.display = 'none';
+        document.getElementById('showSignUp').style.display = 'none';
+        document.getElementById('signUpForm').style.display = 'block';
+        document.getElementById('showLogin').style.display = 'inline';
+        document.getElementById('errorMsg').textContent = '';
+    };
+    // Show Login form
+    document.getElementById('showLogin').onclick = function(e) {
+        e.preventDefault();
+        document.getElementById('loginForm').style.display = 'block';
+        document.getElementById('showSignUp').style.display = 'inline';
+        document.getElementById('signUpForm').style.display = 'none';
+        document.getElementById('showLogin').style.display = 'none';
+        document.getElementById('signUpErrorMsg').textContent = '';
+    };
+
+    // Sign Up functionality
+    document.getElementById('signUpForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const email = document.getElementById('signupEmail').value;
+        const password = document.getElementById('signupPassword').value;
+        const errorMsg = document.getElementById('signUpErrorMsg');
+
+        auth.createUserWithEmailAndPassword(email, password)
+            .then((userCredential) => {
+                errorMsg.textContent = '✅ Account created! You can now log in.';
+                errorMsg.style.color = '#27ae60';
+                setTimeout(() => {
+                    document.getElementById('showLogin').click();
+                }, 1200);
+            })
+            .catch((error) => {
+                errorMsg.textContent = '❌ ' + (error.message || 'Sign up failed');
+                errorMsg.style.color = '#e74c3c';
+            });
+    });
+    </script>
+</body>
+</html>
