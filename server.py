@@ -6,6 +6,8 @@ import threading, time, random
 import google.generativeai as genai
 from collections import deque
 from datetime import datetime, timedelta
+import os
+from google.cloud import texttospeech
 
 # --- Flask Setup ---
 app = Flask(__name__, static_folder="build", static_url_path="")
@@ -25,6 +27,48 @@ current_data = {
     "feed": 65,
     "light": 400
 }
+
+# google-cloud-texttospeech minimum version 2.29.0 is required.
+
+
+
+PROJECT_ID = ""
+
+def synthesize(prompt: str, text: str, output_filepath: str = "output.mp3"):
+    """Synthesizes speech from the input text and saves it to an MP3 file.
+
+    Args:
+        prompt: Styling instructions on how to synthesize the content in
+          the text field.
+        text: The text to synthesize.
+        output_filepath: The path to save the generated audio file.
+          Defaults to "output.mp3".
+    """
+    client = texttospeech.TextToSpeechClient()
+
+    synthesis_input = texttospeech.SynthesisInput(text=text, prompt=prompt)
+
+    # Select the voice you want to use.
+    voice = texttospeech.VoiceSelectionParams(
+        language_code="en-US",
+        name="Charon",  # Example voice, adjust as needed
+        model_name="gemini-2.5-pro-tts"
+    )
+
+    audio_config = texttospeech.AudioConfig(
+        audio_encoding=texttospeech.AudioEncoding.MP3
+    )
+
+    # Perform the text-to-speech request on the text input with the selected
+    # voice parameters and audio file type.
+    response = client.synthesize_speech(
+        input=synthesis_input, voice=voice, audio_config=audio_config
+    )
+
+    # The response's audio_content is binary.
+    with open(output_filepath, "wb") as out:
+        out.write(response.audio_content)
+        print(f"Audio content written to file: {output_filepath}")
 
 # --- Data History Storage ---
 data_history = deque(maxlen=300)  # Store last 5 minutes of data (300 entries at 1-second intervals)
@@ -93,6 +137,23 @@ def system_state():
         socketio.emit("system_state", data)
         print("System State Update:", data)
     return jsonify({"status": "ok"})
+
+@app.route('/api/voice', methods=['POST'])
+def api_voice():
+    """Handles voice synthesis requests."""
+    print("Voice Synthesis Request Received")
+    data = request.get_json()
+    prompt = data.get("prompt", "")
+    text = data.get("text", "")
+    output_filepath = data.get("output_filepath", "output.mp3")
+
+    if not text:
+        return jsonify({"error": "No text provided"}), 400
+    
+    print(f"Synthesizing voice with prompt: {prompt}, text: {text}, output: {output_filepath}")
+
+    synthesize(prompt, text, output_filepath)
+    return jsonify({"status": "ok", "output_filepath": output_filepath})
 
 @app.route('/hotspot-data', methods=['POST'])
 def hotspot_data():
