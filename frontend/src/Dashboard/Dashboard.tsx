@@ -113,9 +113,28 @@ export default function Dashboard() {
     };
 
     fetchData();
-    const interval = setInterval(fetchData, 1000);
+    const interval = setInterval(fetchData, 8000);
+
+    // Call voice once for testing
+    voice("This is a test call to voice.");
+
     return () => clearInterval(interval);
   }, []);
+
+
+  const voice = async (text: string) => {
+  try {
+    await fetch("http://127.0.0.1:5000/api/voice", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ text }), // ✅ send text correctly
+    });
+  } catch (err) {
+    console.error("Failed to send voice query:", err);
+  }
+};
 
 // --- WebSocket for device + system state updates ---
 useEffect(() => {
@@ -209,15 +228,7 @@ useEffect(() => {
           </nav>
         </div>
 
-        <div className="p-4 flex items-center space-x-3 border-t border-green-800">
-          <div className="w-10 h-10 bg-[#cfe8d9] text-[#0a5526] flex items-center justify-center rounded-full font-semibold">
-            JD
-          </div>
-          <div>
-            <p className="font-medium">John Doe</p>
-            <p className="text-sm text-green-100">Farmer</p>
-          </div>
-        </div>
+      
       </aside>
 
       {/* Main Content */}
