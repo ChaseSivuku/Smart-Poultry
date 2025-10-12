@@ -52,6 +52,9 @@ export default function Dashboard() {
   const [pumpOn, setPumpOn] = useState(false);
   const [lightOn, setLightOn] = useState(false);
 
+  // Hotspot tracking data
+  const [hotspots, setHotspots] = useState<{x: number, y: number, intensity: number, name: string}[]>([]);
+
   const [lineData, setLineData] = useState<{ time: string; temp: number }[]>([]);
   const [barData, setBarData] = useState<{ name: string; amount: number }[]>([]);
   const [pieData, setPieData] = useState<{ name: string; value: number }[]>([]);
@@ -166,6 +169,12 @@ useEffect(() => {
     if (data.light_on !== undefined) setLightOn(data.light_on);
   });
 
+  // 🎯 Hotspot tracking updates from radar system
+  socket.on("hotspot_data", (data) => {
+    console.log("🎯 Hotspot Data Update:", data);
+    setHotspots(data.hotspots || []);
+  });
+
   return () => {
     socket.disconnect();
   };
@@ -271,11 +280,34 @@ useEffect(() => {
               <ChartCard title="Feed Distribution">
                 <ResponsiveContainer width="100%" height={250}>
                   <BarChart data={barData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <Tooltip />
-                    <Bar dataKey="amount" fill="#0a5526" radius={[6, 6, 0, 0]} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <XAxis 
+                      dataKey="name" 
+                      tick={{ fontSize: 12, fill: '#374151' }}
+                      axisLine={{ stroke: '#d1d5db' }}
+                    />
+                    <YAxis 
+                      label={{ value: 'kg', angle: -90, position: 'insideLeft', style: { textAnchor: 'middle', fill: '#374151' } }}
+                      tick={{ fontSize: 12, fill: '#374151' }}
+                      axisLine={{ stroke: '#d1d5db' }}
+                    />
+                    <Tooltip 
+                      formatter={(value: number) => [`${value.toFixed(1)} kg`, 'Amount']}
+                      labelStyle={{ color: '#374151', fontWeight: 'bold' }}
+                      contentStyle={{ 
+                        backgroundColor: '#f9fafb', 
+                        border: '1px solid #d1d5db',
+                        borderRadius: '8px',
+                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                      }}
+                    />
+                    <Bar 
+                      dataKey="amount" 
+                      fill="#0a5526" 
+                      radius={[6, 6, 0, 0]}
+                      stroke="#065f46"
+                      strokeWidth={1}
+                    />
                   </BarChart>
                 </ResponsiveContainer>
               </ChartCard>
@@ -306,6 +338,62 @@ useEffect(() => {
                   <DeviceStatus icon={<Fan size={40} />} label="Fan" active={fanOn} />
                   <DeviceStatus icon={<Droplets size={40} />} label="Pump" active={pumpOn} />
                   <DeviceStatus icon={<Lightbulb size={40} />} label="Light" active={lightOn} />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Chicken Hotspot Tracking Section */}
+            <Card className="bg-white shadow-md rounded-2xl border border-gray-100 mt-8">
+              <CardContent className="p-6">
+                <h2 className="text-lg font-semibold mb-6 text-gray-700 flex items-center gap-2">
+                  <Activity className="text-[#0a5526]" size={20} /> Chicken Hotspot Tracking
+                </h2>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Hotspot Map */}
+                  <div className="space-y-4">
+                    <h3 className="text-md font-medium text-gray-600">Radar Heat Map</h3>
+                    <div className="relative bg-gray-100 rounded-lg p-4 h-64 border-2 border-gray-200">
+                      <div className="absolute inset-0 rounded-lg overflow-hidden">
+                        {hotspots.map((hotspot, index) => (
+                          <div
+                            key={index}
+                            className="absolute rounded-full opacity-70 animate-pulse"
+                            style={{
+                              left: `${hotspot.x}%`,
+                              top: `${hotspot.y}%`,
+                              width: `${Math.max(20, hotspot.intensity * 2)}px`,
+                              height: `${Math.max(20, hotspot.intensity * 2)}px`,
+                              backgroundColor: hotspot.intensity > 70 ? '#ef4444' : 
+                                             hotspot.intensity > 40 ? '#f59e0b' : '#10b981',
+                              transform: 'translate(-50%, -50%)',
+                            }}
+                          />
+                        ))}
+                      </div>
+                      <div className="absolute top-2 left-2 text-xs text-gray-500">
+                        Coop Floor (800x500)
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Hotspot List */}
+                  <div className="space-y-4">
+                    <h3 className="text-md font-medium text-gray-600">Active Hotspots</h3>
+                    <div className="space-y-3 max-h-64 overflow-y-auto">
+                      {hotspots.length > 0 ? (
+                        hotspots.map((hotspot, index) => (
+                          <HotspotCard key={index} hotspot={hotspot} />
+                        ))
+                      ) : (
+                        <div className="text-center text-gray-500 py-8">
+                          <Activity size={40} className="mx-auto mb-2 opacity-50" />
+                          <p>No hotspots detected</p>
+                          <p className="text-sm">Radar scanning...</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -407,6 +495,41 @@ function DeviceStatus({
           <span className="text-xs font-semibold text-green-600">ACTIVE</span>
         </div>
       )}
+    </div>
+  );
+}
+
+function HotspotCard({
+  hotspot,
+}: {
+  hotspot: {x: number, y: number, intensity: number, name: string};
+}) {
+  const getIntensityColor = (intensity: number) => {
+    if (intensity > 70) return "text-red-600 bg-red-50 border-red-200";
+    if (intensity > 40) return "text-orange-600 bg-orange-50 border-orange-200";
+    return "text-green-600 bg-green-50 border-green-200";
+  };
+
+  const getIntensityLabel = (intensity: number) => {
+    if (intensity > 70) return "High Activity";
+    if (intensity > 40) return "Medium Activity";
+    return "Low Activity";
+  };
+
+  return (
+    <div className={`p-4 rounded-lg border-2 ${getIntensityColor(hotspot.intensity)}`}>
+      <div className="flex items-center justify-between">
+        <div>
+          <h4 className="font-semibold">{hotspot.name}</h4>
+          <p className="text-sm opacity-75">
+            Position: ({hotspot.x.toFixed(1)}%, {hotspot.y.toFixed(1)}%)
+          </p>
+        </div>
+        <div className="text-right">
+          <div className="text-lg font-bold">{hotspot.intensity}%</div>
+          <div className="text-xs opacity-75">{getIntensityLabel(hotspot.intensity)}</div>
+        </div>
+      </div>
     </div>
   );
 }

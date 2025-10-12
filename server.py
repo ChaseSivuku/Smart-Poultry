@@ -29,6 +29,7 @@ current_data = {
 # --- Data History Storage ---
 data_history = deque(maxlen=300)  # Store last 5 minutes of data (300 entries at 1-second intervals)
 activity_history = deque(maxlen=50)  # Store last 50 activity events
+hotspot_history = deque(maxlen=100)  # Store last 100 hotspot scans
 
 def add_to_history():
     """Add current sensor data to history"""
@@ -93,6 +94,27 @@ def system_state():
         print("System State Update:", data)
     return jsonify({"status": "ok"})
 
+@app.route('/hotspot-data', methods=['POST'])
+def hotspot_data():
+    """Handles hotspot data from the radar system."""
+    data = request.get_json()
+    print("Hotspot Data Received:", data)
+    
+    if data and 'hotspots' in data:
+        # Store hotspot data in history
+        timestamp = datetime.now()
+        hotspot_entry = {
+            "timestamp": timestamp.isoformat(),
+            "hotspots": data['hotspots']
+        }
+        hotspot_history.append(hotspot_entry)
+        
+        # Broadcast hotspot data to connected dashboard clients
+        socketio.emit("hotspot_data", data)
+        print("Hotspot Data Broadcast:", data)
+    
+    return jsonify({"status": "ok"})
+
 @app.route('/api/assistant', methods=['POST'])
 def assistant_chat():
     """Handle chat requests with Gemini AI using simulation data context."""
@@ -106,6 +128,7 @@ def assistant_chat():
         # Prepare context from last 5 minutes of data
         recent_data = list(data_history)[-60:]  # Last 60 entries (1 minute)
         recent_activities = list(activity_history)[-10:]  # Last 10 activities
+        recent_hotspots = list(hotspot_history)[-5:]  # Last 5 hotspot scans
         
         # Create context for Gemini
         context = f"""
@@ -132,9 +155,21 @@ RECENT SENSOR DATA TRENDS (last minute):
             context += f"- {entry['timestamp'][:19]}: Temp={entry['temperature']:.1f}°C, Water={entry['tankLevel']:.1f}%, Feed={entry['feed']:.1f}%, Light={entry['light']:.1f} lux\n"
 
         context += f"""
-Based on this data, please answer the user's question: "{user_question}"
+CHICKEN HOTSPOT ANALYSIS (Radar Data):
+"""
+        
+        if recent_hotspots:
+            latest_hotspots = recent_hotspots[-1]['hotspots']
+            context += f"Current hotspots detected: {len(latest_hotspots)}\n"
+            for hotspot in latest_hotspots:
+                context += f"- {hotspot['name']}: {hotspot['intensity']:.1f}% activity at ({hotspot['x']:.1f}%, {hotspot['y']:.1f}%)\n"
+        else:
+            context += "No recent hotspot data available.\n"
 
-Provide helpful insights about the farm's condition, suggest optimizations, or explain what the data means. Be concise but informative.
+        context += f"""
+Based on this comprehensive data including sensor readings, activity events, and chicken behavior hotspots, please answer the user's question: "{user_question}"
+
+Provide helpful insights about the farm's condition, chicken behavior patterns, suggest optimizations, or explain what the data means. Consider both environmental factors and chicken movement patterns. Be concise but informative.
 """
 
         # Generate response using Gemini

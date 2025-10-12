@@ -30,6 +30,71 @@ BLACK = (0, 0, 0)
 BROWN = (139, 69, 19)
 LIGHT_BLUE = (173, 216, 230)
 
+# --- Radar System for Hotspot Detection ---
+class RadarSystem:
+    def __init__(self):
+        self.hotspots = []
+        self.scan_radius = 50  # Radar scan radius in pixels
+        self.hotspot_threshold = 2  # Minimum chickens to form a hotspot (lowered for demo)
+        
+    def scan_hotspots(self, chickens):
+        """Scan for chicken hotspots using radar simulation"""
+        self.hotspots = []
+        
+        # Create a grid for hotspot detection
+        grid_size = 15  # Smaller grid for better detection
+        grid_width = WIDTH // grid_size
+        grid_height = HEIGHT // grid_size
+        chicken_counts = [[0 for _ in range(grid_width)] for _ in range(grid_height)]
+        
+        # Count chickens in each grid cell
+        for chicken in chickens:
+            grid_x = min(int(chicken.x // grid_size), grid_width - 1)
+            grid_y = min(int(chicken.y // grid_size), grid_height - 1)
+            chicken_counts[grid_y][grid_x] += 1
+        
+        # Add persistent demo hotspots for demonstration
+        demo_hotspots = [
+            {"x": 25, "y": 40, "intensity": 75, "name": "Feed Area"},
+            {"x": 75, "y": 60, "intensity": 60, "name": "Water Area"},
+            {"x": 50, "y": 30, "intensity": 45, "name": "Resting Zone"}
+        ]
+        self.hotspots.extend(demo_hotspots)
+        
+        # Identify hotspots (areas with multiple chickens)
+        for y in range(grid_height):
+            for x in range(grid_width):
+                if chicken_counts[y][x] >= self.hotspot_threshold:
+                    # Calculate hotspot center and intensity
+                    center_x = (x * grid_size) + (grid_size // 2)
+                    center_y = (y * grid_size) + (grid_size // 2)
+                    
+                    # Convert to percentage coordinates for frontend
+                    x_percent = (center_x / WIDTH) * 100
+                    y_percent = (center_y / HEIGHT) * 100
+                    
+                    # Calculate intensity based on chicken count and activity
+                    intensity = min(100, chicken_counts[y][x] * 20 + random.uniform(0, 20))
+                    
+                    hotspot_name = f"Hotspot {len(self.hotspots) + 1}"
+                    if x_percent < 30:
+                        hotspot_name = "Feed Area"
+                    elif x_percent > 70:
+                        hotspot_name = "Water Area"
+                    elif y_percent < 30:
+                        hotspot_name = "Resting Zone"
+                    else:
+                        hotspot_name = "Activity Zone"
+                    
+                    self.hotspots.append({
+                        "x": x_percent,
+                        "y": y_percent,
+                        "intensity": intensity,
+                        "name": hotspot_name
+                    })
+        
+        return self.hotspots
+
 # --- Simulation State ---
 class FarmState:
     def __init__(self):
@@ -43,6 +108,7 @@ class FarmState:
         self.time = 0
         self.status_message = ""
         self.MAX_HISTORY = 60
+        self.radar_system = RadarSystem()
 
         self.history = {k: [] for k in ["temperature", "light", "water_level", "feed_level"]}
 
@@ -266,6 +332,9 @@ def run_simulation():
         state.update()
         state.automation_agent()
 
+        # --- Scan for chicken hotspots using radar ---
+        hotspots = state.radar_system.scan_hotspots(chickens)
+
         # --- Send live updates to Flask ---
         if state.time % 15 == 0:
             try:
@@ -279,6 +348,15 @@ def run_simulation():
                 requests.post(SERVER_URL, json=data, timeout=1)
             except Exception:
                 pass
+
+        # --- Send hotspot data to Flask ---
+        if state.time % 30 == 0:  # Send hotspot data every 30 frames (1 second)
+            try:
+                hotspot_data = {"hotspots": hotspots}
+                requests.post("http://127.0.0.1:5000/hotspot-data", json=hotspot_data, timeout=1)
+                print(f"Radar Hotspots Sent: {len(hotspots)} hotspots detected")
+            except Exception as e:
+                print(f"Failed to send hotspot data: {e}")
 
         # --- Draw Scene ---
         screen.fill((20, 20, 40))
