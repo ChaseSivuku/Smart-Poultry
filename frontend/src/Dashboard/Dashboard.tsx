@@ -93,9 +93,9 @@ export default function Dashboard() {
 
         setBarData([
           { name: "Feed A", amount: data.feed },
-          { name: "Feed B", amount: Math.max(0, data.feed - 10) },
-          { name: "Feed C", amount: Math.max(0, data.feed - 20) },
-          { name: "Feed D", amount: Math.max(0, data.feed - 30) },
+          { name: "Starter", amount: Math.max(0, data.feed - 10) },
+          { name: "Grower", amount: Math.max(0, data.feed - 20) },
+          { name: "Finisher", amount: Math.max(0, data.feed - 30) },
         ]);
 
         setPieData([
@@ -390,15 +390,23 @@ function DeviceStatus({
 }) {
   return (
     <div
-      className={`p-6 rounded-2xl border transition-all ${
+      className={`p-6 rounded-2xl border-2 transition-all ${
         active
-          ? "border-green-600 bg-green-50 text-green-700"
+          ? "border-green-500 bg-green-50 text-green-700 shadow-lg shadow-green-100"
           : "border-gray-300 bg-gray-50 text-gray-500"
       }`}
     >
-      <div className="flex justify-center mb-3">{icon}</div>
+      <div className={`flex justify-center mb-3 ${active ? "text-green-600" : ""}`}>
+        {icon}
+      </div>
       <h3 className="text-lg font-semibold">{label}</h3>
-      <p className="mt-1 text-sm">{active ? "Activated" : "Off"}</p>
+      <p className="mt-1 text-sm font-medium">{active ? "ON" : "OFF"}</p>
+      {active && (
+        <div className="flex items-center justify-center gap-2 mt-2">
+          <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+          <span className="text-xs font-semibold text-green-600">ACTIVE</span>
+        </div>
+      )}
     </div>
   );
 }
